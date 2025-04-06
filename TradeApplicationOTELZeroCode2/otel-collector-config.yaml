@@ -1,0 +1,59 @@
+# otel-collector-config.yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+  
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: production
+        action: insert
+      - key: service.namespace
+        value: trading-app
+        action: insert
+
+exporters:
+  awsxray:
+    region: "ap-southeast-1"
+    local_mode: true
+    
+  logging:
+    loglevel: debug
+  
+  awscloudwatchlogs:
+    region: "${AWS_REGION}"
+    log_group_name: "/trading-app/services"
+    log_stream_name: "otel-collector"
+    
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [awsxray, logging]
+    
+    logs:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [logging]
+      
+    metrics:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [prometheus, logging]
+  
+  telemetry:
+    logs:
+      level: info
